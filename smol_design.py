@@ -6,7 +6,7 @@ from langchain.chains import LLMChain
 import tiktoken
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
-
+from langchain.callbacks.openai_info import get_openai_token_cost_for_model
 
 
 
@@ -60,103 +60,10 @@ def summarize_documents(documents):
         collapse_prompt=collapse_prompt_template,
         combine_prompt=reduce_prompt_template,
         return_intermediate_steps=True,
-        verbose=True,
+        verbose=False,
     )
     res = chain({"input_documents": documents})
     return res['output_text']
-    
-
-def summarize(filepath):
-    with open(filepath, "r") as f:
-        code = f.read()
-
-    # HACK: 15000 roughly gives 3600 tokens
-    if report_tokens(code) > 3600:
-        code = code[:15000]
-
-    llm = ChatOpenAI(temperature=0.5, model_name=GPT_3_5_TURBO)
-    prompt = PromptTemplate(
-        input_variables=["code"],
-        template="""
-Give one line summary of below with key functionality and components. Limit to 20 words.
-{code}
-""",
-    )
-    chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
-
-    try:
-        s = chain.run(code)
-    except Exception as e:
-        s = str(e)[-200:]
-
-    return s.strip()
-
-
-def traverse_summarize(root):
-    summary = {}
-
-    for path, dirs, files in os.walk(root):
-        relpath = os.path.relpath(path, root)
-        if relpath == ".":
-            path_names = []
-        else:
-            path_names = relpath.split("/")
-
-        curr = summary
-        for p in path_names:
-            next_curr = curr.get(p, {})
-            curr[p] = next_curr
-            curr = next_curr
-
-        for f in files:
-            if is_valid_file(f):
-                curr[f] = summarize(os.path.join(path, f))
-
-    return summary
-
-
-def generate_design_doc(summary):
-    """
-    Given a summary of the codebase, generate a design doc.
-    """
-    llm = ChatOpenAI(temperature=0.5, model_name=GPT_3_5_TURBO_16k)
-    prompt = PromptTemplate(
-        input_variables=["summary"],
-        template="""
-Write a full technical design doc for the below encoded codebase. 
-
-At a high level, discuss the purpose and functionalities of the codebase, 
-major tech stack used, and an overview of the architecture. 
-Describe the framework and languages used for each tech layer and corresponding 
-communication protocols. If there's any design unique about this codebase, 
-make sure to discuss those aspect in closer detail. For example, for a machine 
-learning ops library, it's important to talk about compute orchestration, 
-training and inference pipeline and model versioning.
-
-Then in more details, describe the mission critical API endpoints. 
-Describe the overall user experience and product flow. 
-Talk about the data storage and retrieval strategy, including 
-performance considerations and specific table schema. Touch on the deployment 
-flow and infrastructure set up. Include topics around scalability, fault 
-tolerance and monitoring.
-
-Lastly, briefly touch on the security and authentication aspect. 
-Talk about potential future improvements and enhancement to the feature set.
-
-Codebase is encoded as follows:
-- File name maps to a summary of the file content
-- Folder name maps to files and subfolders in the folder
-
-Encoded codebase is:
-{summary}
-""",
-    )
-    chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
-    try:
-        return chain.run(summary=summary)
-    except Exception as e:
-        print(str(e))
-        return ""
 
 
 def is_valid_file(filename):
@@ -184,47 +91,19 @@ def save_txt(data, filepath):
         file.write(data)
 
 
-def report_tokens(s):
-    encoding = tiktoken.encoding_for_model(GPT_3_5_TURBO)
+def report_tokens(s, model=GPT_3_5_TURBO):
+    encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
 
 
-def report_tokens_file(path):
-    with open(path, "r") as f:
-        s = f.read()
-    return report_tokens(s)
-
-
-def report_tokens_folder(path):
-    total_tokens = 0
-    if os.path.isdir(path):
-        for p, dirs, files in os.walk(path):
-            for f in files:
-                if is_valid_file(f):
-                    total_tokens += report_tokens_file(os.path.join(p, f))
-    else:
-        total_tokens += report_tokens_file(path)
-    return total_tokens
-
+def estimate_cost_from_documents(documents, model=GPT_3_5_TURBO):
+    total_tokens = sum(report_tokens(d.page_content) for d in documents)
+    return get_openai_token_cost_for_model(model, total_tokens)
 
 if __name__ == "__main__":
-    # d = traverse_summarize("/Users/yuansongfeng/Desktop/dev/civitai")
-    # save_json(d, "summary.json")
-
-    # print(report_tokens_folder("/Users/yuansongfeng/Desktop/dev/SimpML/summary.json"))
-
-    # with open(
-    #     "/Users/yuansongfeng/Desktop/dev/civitai/src/server/services/tag.service.ts",
-    #     "r",
-    # ) as f:
-    #     s = f.read()
-    #     print(report_tokens(s[:15000]))
-
-    # d = load_json("part_summary.json")
-    # design = generate_design_doc(d)
-    # print(design)
-    # save_txt(design, "design.txt")
-
     docs = documents_from_dir("/Users/yuansongfeng/Desktop/dev/civitai/src/libs")
+    estimated_cost = estimate_cost_from_documents(docs)
+    print(f"Estimated cost: ${estimated_cost}")
+
     summary = summarize_documents(docs)
     save_txt(summary, "generated/civitai.txt")
