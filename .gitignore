@@ -1,2 +1,4 @@
 generated/
 .env
+.vscode/
+__pycache__/
