@@ -7,6 +7,7 @@ import tiktoken
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.callbacks.openai_info import get_openai_token_cost_for_model
+from github import Github
 
 
 
@@ -34,6 +35,42 @@ def documents_from_dir(dirpath):
                 d = f"{relpath}\n" + d
                 docs.append(Document(page_content=d))
     return docs
+
+def documents_from_repo(repo_url):
+    if "github.com/" not in repo_url:
+        raise Exception(f"Invalid repo url: {repo_url}")
+    
+    url = repo_url.split("github.com/")[1]
+    access_token = os.environ["GITHUB_TOKEN"]
+    g = Github(access_token)
+    repo = g.get_repo(url)
+
+    # Get all files in the codebase
+    files = get_codebase_files(repo)
+    docs = []
+    for file in files:
+        content = read_file_contents(file)
+        docs.append(Document(page_content=content))
+    return docs
+
+def get_codebase_files(repo):
+    files = []
+    contents = repo.get_contents("")
+    while contents:
+        file_content = contents.pop(0)
+        if file_content.type == "dir":
+            contents.extend(repo.get_contents(file_content.path))
+        else:
+            if is_valid_file(file_content.path):
+                files.append(file_content)
+    return files
+
+def read_file_contents(file):
+    try:
+        response = file.decoded_content
+        return response.decode("utf-8")
+    except:
+        return ""
 
 def summarize_documents(documents):
     """Map-reduce summarize documents to a design doc
@@ -101,9 +138,13 @@ def estimate_cost_from_documents(documents, model=GPT_3_5_TURBO):
     return get_openai_token_cost_for_model(model, total_tokens)
 
 if __name__ == "__main__":
-    docs = documents_from_dir("/Users/yuansongfeng/Desktop/dev/civitai/src/libs")
+    # docs = documents_from_dir("/Users/yuansongfeng/Desktop/dev/civitai/src/libs")
+    docs = documents_from_repo("https://github.com/civitai/civitai")
     estimated_cost = estimate_cost_from_documents(docs)
-    print(f"Estimated cost: ${estimated_cost}")
 
-    summary = summarize_documents(docs)
-    save_txt(summary, "generated/civitai.txt")
+    confirmation = input(f"Estimated cost is ${estimated_cost}. Continue? [y/n] ")
+    if confirmation == "y":
+        summary = summarize_documents(docs)
+        save_txt(summary, "generated/civitai.txt")
+    else:
+        print("Aborted.")
