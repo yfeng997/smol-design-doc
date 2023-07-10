@@ -17,7 +17,7 @@ A smol design doc generator for any open source project
 
 def summarize_documents(documents):
     """Map-reduce summarize documents to a design doc"""
-    llm = ChatOpenAI(temperature=0, model_name=GPT_3_5_TURBO)
+    llm = ChatOpenAI(temperature=0, model_name=GPT_3_5_TURBO_16k)
     reduce_llm = ChatOpenAI(temperature=0, model_name=GPT_4)
 
     map_prompt = """Give a one line summary of below with key functionality and components:
