@@ -35,8 +35,8 @@ def documents_from_dir(dirpath):
                     d = f.read()
                 # append path to beginning of doc
                 relpath = os.path.relpath(path, dirpath)
-                d = f"{relpath}\n" + d
-                docs.append(Document(page_content=d))
+                relpath = os.path.join(relpath, filename)
+                docs.append(Document(page_content=d, metadata={"path": relpath}))
     return docs
 
 
@@ -54,7 +54,7 @@ def documents_from_repo(repo_url):
     docs = []
     for file in files:
         content = read_file_contents(file)
-        docs.append(Document(page_content=content))
+        docs.append(Document(page_content=content, metadata={"path": file.path}))
     return docs
 
 

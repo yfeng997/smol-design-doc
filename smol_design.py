@@ -68,7 +68,12 @@ def summarize_documents(documents):
         res = chain({"input_documents": documents})
         print(usage_callback)
 
-    return res["output_text"]
+    design = res["output_text"]
+    file_summaries = {
+        doc.metadata["path"]: res["intermediate_steps"][i]
+        for i, doc in enumerate(documents)
+    }
+    return design, file_summaries
 
 
 def save_json(data, filepath):
@@ -92,14 +97,17 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    path = "/Users/yuansongfeng/Desktop/dev/BearHugAI"
+    project = "developer"
+    path = "/Users/yuansongfeng/Desktop/dev/developer"
+
     docs = documents_from_dir(path)
-    # docs = documents_from_repo("https://github.com/civitai/civitai")
     estimated_cost = estimate_cost_path(path)
 
     confirmation = input(f"Estimated cost is ${estimated_cost}. Continue? [y/n] ")
     if confirmation == "y":
-        summary = summarize_documents(docs)
-        save_txt(summary, "generated/bearhugai.txt")
+        design, summaries = summarize_documents(docs)
+        os.makedirs(f"generated/{project}", exist_ok=True)
+        save_txt(design, f"generated/{project}/design.txt")
+        save_json(summaries, f"generated/{project}/summaries.json")
     else:
         print("Aborted.")
