@@ -17,8 +17,8 @@ A smol design doc generator for any open source project
 
 def summarize_documents(documents):
     """Map-reduce summarize documents to a design doc"""
-    llm = ChatOpenAI(temperature=0, model_name=GPT_3_5_TURBO_16k)
-    reduce_llm = ChatOpenAI(temperature=0, model_name=GPT_4)
+    llm = ChatOpenAI(temperature=1, model_name=GPT_3_5_TURBO_16k)
+    reduce_llm = ChatOpenAI(temperature=1, model_name=GPT_4)
 
     map_prompt = """Give a one line summary of below with key functionality and components:
     {text}"""
@@ -30,9 +30,25 @@ def summarize_documents(documents):
         template=collapse_prompt, input_variables=["text"]
     )
 
-    reduce_prompt = """Write a full technical design doc given below summaries over each file in the codebase. 
-    Include architecture overview, design considerations and interesting details.  
-    {text}"""
+    reduce_prompt = """
+    Write a full technical design doc for the below encoded codebase. 
+
+    At a high level, discuss the purpose and functionalities of the codebase, major tech stack used, 
+    and an overview of the architecture. Describe the framework and languages used for each tech 
+    layer and corresponding communication protocols. If there's any design unique about this 
+    codebase, make sure to discuss those aspect in closer detail. 
+
+    Then in more details, describe the mission critical API endpoints. Describe the overall 
+    user experience and product flow. Talk about the data storage and retrieval strategy, 
+    including performance considerations and specific table schema. Touch on the deployment 
+    flow and infrastructure set up. Include topics around scalability, fault tolerance and 
+    monitoring.
+
+    Lastly, briefly touch on the security and authentication aspect. Talk about potential 
+    future improvements and enhancement to the feature set. 
+
+    {text}
+    """
     reduce_prompt_template = PromptTemplate(
         template=reduce_prompt, input_variables=["text"]
     )
@@ -76,7 +92,7 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    path = "/Users/yuansongfeng/Desktop/dev/civitai"
+    path = "/Users/yuansongfeng/Desktop/dev/BearHugAI"
     docs = documents_from_dir(path)
     # docs = documents_from_repo("https://github.com/civitai/civitai")
     estimated_cost = estimate_cost_path(path)
@@ -84,6 +100,6 @@ if __name__ == "__main__":
     confirmation = input(f"Estimated cost is ${estimated_cost}. Continue? [y/n] ")
     if confirmation == "y":
         summary = summarize_documents(docs)
-        save_txt(summary, "generated/civitai.txt")
+        save_txt(summary, "generated/bearhugai.txt")
     else:
         print("Aborted.")
