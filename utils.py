@@ -9,7 +9,7 @@ from langchain.callbacks.openai_info import get_openai_token_cost_for_model
 
 def count_token_string(s, model=GPT_3_5_TURBO):
     encoding = tiktoken.encoding_for_model(model)
-    return len(encoding.encode(s))
+    return len(encoding.encode(s, allowed_special={"<|endoftext|>"}))
 
 
 def count_token_path(path, model=GPT_3_5_TURBO):
@@ -80,12 +80,8 @@ def read_file_contents(file):
 
 
 def is_valid_file(filename):
-    return (
-        filename.endswith(".py")
-        or filename.endswith(".ts")
-        or filename.endswith(".js")
-        or filename.endswith(".tsx")
-    )
+    valid_format = [".py", ".ts", ".js", ".tsx", ".mts", ".sh"]
+    return any(filename.endswith(ext) for ext in valid_format)
 
 
 def main():

@@ -31,7 +31,7 @@ def summarize_documents(documents):
     )
 
     reduce_prompt = """
-    Write a full technical design doc for the below encoded codebase. 
+    Write a full technical design doc, in markdown format, for below codebase. 
 
     At a high level, discuss the purpose and functionalities of the codebase, major tech stack used, 
     and an overview of the architecture. Describe the framework and languages used for each tech 
@@ -97,8 +97,10 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    project = "developer"
-    path = "/Users/yuansongfeng/Desktop/dev/developer"
+    # TODO Rewrite this into CLI
+
+    project = "media-server"
+    path = "/Users/yuansongfeng/Desktop/dev/media-server"
 
     docs = documents_from_dir(path)
     estimated_cost = estimate_cost_path(path)
